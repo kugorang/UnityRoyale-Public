@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -59,7 +59,11 @@ namespace UnityRoyale
                 if(OnCardUsed != null)
 				{
 					Vector3 newPos = new Vector3(Random.Range(-5f, 5f), 0f, Random.Range(3f, 8.5f));
-                    OnCardUsed(aiDeck.GetNextCardFromDeck(), newPos, Placeable.Faction.Opponent);
+                    CardData nextCard = aiDeck.GetNextCardFromDeck();
+                    if (nextCard != null)
+                    {
+                        OnCardUsed(nextCard, newPos, Placeable.Faction.Opponent);
+                    }
 				}
             }
 		}

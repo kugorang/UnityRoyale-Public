@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -29,9 +29,12 @@ namespace UnityRoyale
 
 		public void RemoveHealthUI(ThinkingPlaceable p)
 		{
+            if (p.healthBar == null) return;
+
 			healthBars.Remove(p.healthBar);
 			
 			Destroy(p.healthBar.gameObject);
+            p.healthBar = null;
 		}
 
 		public void ShowGameOverUI()

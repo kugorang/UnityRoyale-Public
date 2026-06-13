@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -49,7 +49,10 @@ namespace UnityRoyale
         public virtual void SetTarget(ThinkingPlaceable t)
         {
             target = t;
-            t.OnDie += TargetIsDead;
+            if (t != null)
+            {
+                t.OnDie += TargetIsDead;
+            }
         }
 
         public virtual void StartAttack()

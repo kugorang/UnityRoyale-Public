@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -108,7 +108,11 @@ namespace UnityRoyale
 
                         //find closest target and assign it to the ThinkingPlaceable
                         bool targetFound = FindClosestInList(p.transform.position, GetAttackList(p.faction, p.targetType), out targetToPass);
-                        if(!targetFound) Debug.LogError("No more targets!"); //this should only happen on Game Over
+                        if(!targetFound)
+                        {
+                            Debug.LogError("No more targets!"); //this should only happen on Game Over
+                            break;
+                        }
                         p.SetTarget(targetToPass);
 						p.Seek();
                         break;
@@ -150,7 +154,10 @@ namespace UnityRoyale
 					if(currProjectile.target.state != ThinkingPlaceable.States.Dead) //target might be dead already as this projectile is flying
 					{
 						float newHP = currProjectile.target.SufferDamage(currProjectile.damage);
-						currProjectile.target.healthBar.SetHealth(newHP);
+                        if (currProjectile.target.healthBar != null)
+                        {
+                            currProjectile.target.healthBar.SetHealth(newHP);
+                        }
 					}
 					Destroy(currProjectile.gameObject);
 					allProjectiles.RemoveAt(prjN);
@@ -244,13 +251,13 @@ namespace UnityRoyale
                             bScript.OnDie += OnCastleDead;
                         }
                         
-                        navMesh.BuildNavMesh(); //rebake the Navmesh
+                        if(navMesh != null) navMesh.BuildNavMesh(); //rebake the Navmesh
                         break;
 
                     case Placeable.PlaceableType.Obstacle:
                         Obstacle oScript = go.GetComponent<Obstacle>();
                         oScript.Activate(pDataRef);
-                        navMesh.BuildNavMesh(); //rebake the Navmesh
+                        if(navMesh != null) navMesh.BuildNavMesh(); //rebake the Navmesh
                         break;
 
                     case Placeable.PlaceableType.Spell:
@@ -280,7 +287,10 @@ namespace UnityRoyale
 			if(p.target.state != ThinkingPlaceable.States.Dead)
 			{
 				float newHealth = p.target.SufferDamage(p.damage);
-				p.target.healthBar.SetHealth(newHealth);
+                if (p.target.healthBar != null)
+                {
+                    p.target.healthBar.SetHealth(newHealth);
+                }
 			}
 		}
 
@@ -362,7 +372,7 @@ namespace UnityRoyale
         {
             yield return new WaitForEndOfFrame();
 
-            navMesh.BuildNavMesh();
+            if(navMesh != null) navMesh.BuildNavMesh();
             //FIX: dragged obstacles are included in the navmesh when it's baked
         }
 

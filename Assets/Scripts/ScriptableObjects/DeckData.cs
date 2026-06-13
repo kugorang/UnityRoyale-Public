@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -16,7 +16,7 @@ namespace UnityRoyale
         private CardData[] cards; //the deck of actual cards, needs to be shuffled
         private int currentCard = 0;
 
-        public void CardsRetrieved(List<CardData> cardDataDownloaded)
+        public void CardsRetrieved(IList<CardData> cardDataDownloaded)
         {
             //load the actual cards data into an array, ready to use
             int totalCards = cardDataDownloaded.Count;
@@ -35,6 +35,12 @@ namespace UnityRoyale
 		//returns the next card in the deck. You probably want to shuffle cards first
 		public CardData GetNextCardFromDeck()
         {
+            if (cards == null || cards.Length == 0)
+            {
+                Debug.LogError("No cards loaded in deck: " + name);
+                return null;
+            }
+
             //advance the index
             currentCard++;
             if(currentCard >= cards.Length)

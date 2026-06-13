@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -22,7 +22,7 @@ namespace UnityRoyale
 
 		private void OnResourcesRetrieved(AsyncOperationHandle<IList<CardData>> obj)
 		{
-			targetDeck.CardsRetrieved((List<CardData>)obj.Result);
+			targetDeck.CardsRetrieved(obj.Result);
 
             if(OnDeckLoaded != null)
                 OnDeckLoaded();

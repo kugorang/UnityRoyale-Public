@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Events;
@@ -82,6 +82,12 @@ namespace UnityRoyale
         {
             yield return new WaitForSeconds(delay);
 
+            CardData nextCard = playersDeck.GetNextCardFromDeck();
+            if (nextCard == null)
+            {
+                yield break;
+            }
+
             //create new card
             backupCardTransform = Instantiate<GameObject>(cardPrefab, cardsPanel).GetComponent<RectTransform>();
             backupCardTransform.localScale = Vector3.one * 0.7f;
@@ -92,7 +98,7 @@ namespace UnityRoyale
 
             //populate CardData on the Card script
             Card cardScript = backupCardTransform.GetComponent<Card>();
-            cardScript.InitialiseWithData(playersDeck.GetNextCardFromDeck());
+            cardScript.InitialiseWithData(nextCard);
         }
 
         private void CardTapped(int cardId)
