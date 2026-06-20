@@ -209,6 +209,12 @@ namespace UnityRoyale
 
         public override void OnActionReceived(ActionBuffers actions)
         {
+            EnsureReferences();
+            if (gameManager == null || !gameManager.matchStarted)
+            {
+                return;
+            }
+
             // Discrete Action 0: 0 = Wait, 1 = Play Card 0, 2 = Play Card 1, 3 = Play Card 2
             int playAction = actions.DiscreteActions[0];
             bool onCooldown = Time.time < lastActionTime + actionCooldown;
@@ -332,6 +338,14 @@ namespace UnityRoyale
         public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
         {
             EnsureReferences();
+            if (gameManager == null || !gameManager.matchStarted)
+            {
+                // Mask all play actions until the match has started
+                actionMask.SetActionEnabled(0, 1, false);
+                actionMask.SetActionEnabled(0, 2, false);
+                actionMask.SetActionEnabled(0, 3, false);
+                return;
+            }
             bool onCooldown = Time.time < lastActionTime + actionCooldown;
 
             if (agentFaction == Placeable.Faction.Player)

@@ -12,6 +12,10 @@ namespace UnityRoyale
 		[Header("Settings")]
 		public bool autoStart = false;
 
+        [Header("Manual Play Settings")]
+        public bool manualPlayMode = false;
+        [HideInInspector] public bool matchStarted = false;
+
 		[Header("Public References")]
         public MonoBehaviour navMesh;
 		public GameObject playersCastle, opponentCastle;
@@ -129,9 +133,20 @@ namespace UnityRoyale
 			cinematicsManager = GetComponentInChildren<CinematicsManager>();
 			UIManager = GetComponent<UIManager>();
 
-            if (mlAgent != null && mlAgent.isActiveAndEnabled)
+            if (manualPlayMode)
             {
-                autoStart = true;
+                if (mlAgent != null)
+                {
+                    mlAgent.enabled = false;
+                }
+                autoStart = false;
+            }
+            else
+            {
+                if (mlAgent != null && mlAgent.isActiveAndEnabled)
+                {
+                    autoStart = true;
+                }
             }
 
 			if(autoStart && introTimeline != null)
@@ -175,6 +190,7 @@ namespace UnityRoyale
 		//called by the intro cutscene
 		public void StartMatch()
 		{
+            matchStarted = true;
 			// CPUOpponent is always the enemy (Opponent faction)
 			CPUOpponent.faction = Placeable.Faction.Opponent;
 			CPUOpponent.StartActing();
@@ -882,6 +898,7 @@ namespace UnityRoyale
             updateAllPlaceables = false;
             playerElixir = 5.0f;
             opponentElixir = 5.0f;
+            matchStarted = true;
 
             // 8. Re-start CPU Opponent as enemy
             if (CPUOpponent != null)

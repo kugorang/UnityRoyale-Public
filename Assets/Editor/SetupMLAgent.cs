@@ -58,20 +58,22 @@ namespace UnityRoyale
                 }
             }
 
-            // 3. Get or Add MLPlayerAgent component
+            // 3. Get or Add Player MLPlayerAgent component
             MLPlayerAgent agent = gameManagerGO.GetComponent<MLPlayerAgent>();
             if (agent == null)
             {
                 agent = gameManagerGO.AddComponent<MLPlayerAgent>();
-                UnityEngine.Debug.Log("Added MLPlayerAgent component.");
+                UnityEngine.Debug.Log("Added Player MLPlayerAgent component.");
             }
+            agent.agentFaction = Placeable.Faction.Player;
+            agent.controlMatchReset = true;
 
-            // 4. Get or Add BehaviorParameters component
+            // 4. Get or Add BehaviorParameters component for Player
             BehaviorParameters bp = gameManagerGO.GetComponent<BehaviorParameters>();
             if (bp == null)
             {
                 bp = gameManagerGO.AddComponent<BehaviorParameters>();
-                UnityEngine.Debug.Log("Added BehaviorParameters component.");
+                UnityEngine.Debug.Log("Added Player BehaviorParameters component.");
             }
             // Setup Behavior Parameters values
             bp.BehaviorName = "MLPlayer";
@@ -79,19 +81,76 @@ namespace UnityRoyale
             bp.BrainParameters.NumStackedVectorObservations = 1;
             bp.BrainParameters.ActionSpec = new ActionSpec(2, new int[] { 4 }); // 2 continuous, 1 discrete branch with size 4
 
-            // 5. Get or Add DecisionRequester component
+            // 5. Get or Add DecisionRequester component for Player
             DecisionRequester dr = gameManagerGO.GetComponent<DecisionRequester>();
             if (dr == null)
             {
                 dr = gameManagerGO.AddComponent<DecisionRequester>();
-                UnityEngine.Debug.Log("Added DecisionRequester component.");
+                UnityEngine.Debug.Log("Added Player DecisionRequester component.");
             }
             dr.DecisionPeriod = 5;
+
+            // 5.5. Setup Opponent ML Agent on a child GameObject "MLOpponent"
+            Transform opponentChild = gameManagerGO.transform.Find("MLOpponent");
+            GameObject opponentGO;
+            if (opponentChild == null)
+            {
+                opponentGO = new GameObject("MLOpponent");
+                opponentGO.transform.SetParent(gameManagerGO.transform);
+                Undo.RegisterCreatedObjectUndo(opponentGO, "Create MLOpponent child");
+                UnityEngine.Debug.Log("Created MLOpponent child GameObject.");
+            }
+            else
+            {
+                opponentGO = opponentChild.gameObject;
+            }
+
+            // Get or Add MLPlayerAgent on opponent child
+            MLPlayerAgent opponentAgent = opponentGO.GetComponent<MLPlayerAgent>();
+            if (opponentAgent == null)
+            {
+                opponentAgent = opponentGO.AddComponent<MLPlayerAgent>();
+                UnityEngine.Debug.Log("Added MLPlayerAgent to MLOpponent child.");
+            }
+            opponentAgent.agentFaction = Placeable.Faction.Opponent;
+            opponentAgent.controlMatchReset = false;
+
+            // Get or Add BehaviorParameters on opponent child
+            BehaviorParameters opponentBp = opponentGO.GetComponent<BehaviorParameters>();
+            if (opponentBp == null)
+            {
+                opponentBp = opponentGO.AddComponent<BehaviorParameters>();
+                UnityEngine.Debug.Log("Added BehaviorParameters to MLOpponent child.");
+            }
+            opponentBp.BehaviorName = "MLPlayer"; // Use same behavior name for shared training/model compatibility
+            opponentBp.BrainParameters.VectorObservationSize = 52;
+            opponentBp.BrainParameters.NumStackedVectorObservations = 1;
+            opponentBp.BrainParameters.ActionSpec = new ActionSpec(2, new int[] { 4 });
+
+            // Get or Add DecisionRequester on opponent child
+            DecisionRequester opponentDr = opponentGO.GetComponent<DecisionRequester>();
+            if (opponentDr == null)
+            {
+                opponentDr = opponentGO.AddComponent<DecisionRequester>();
+                UnityEngine.Debug.Log("Added DecisionRequester to MLOpponent child.");
+            }
+            opponentDr.DecisionPeriod = 5;
 
             // 6. Set References
             GameManager gameManager = gameManagerGO.GetComponent<GameManager>();
             agent.gameManager = gameManager;
             gameManager.mlAgent = agent;
+
+            opponentAgent.gameManager = gameManager;
+            gameManager.opponentMLAgent = opponentAgent;
+
+            // Enable useMLAgent on CPUOpponent to switch control to ML-Agent
+            CPUOpponent cpuOpponent = gameManagerGO.GetComponent<CPUOpponent>();
+            if (cpuOpponent != null)
+            {
+                cpuOpponent.useMLAgent = true;
+                UnityEngine.Debug.Log("Set CPUOpponent.useMLAgent to true.");
+            }
 
             // Assign NavMeshSurface reference if not set
             if (gameManager.navMesh == null)
