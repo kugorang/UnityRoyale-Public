@@ -128,7 +128,7 @@ namespace UnityRoyale
             costText.fontStyle = TMPro.FontStyles.Bold;
             costText.color = new Color(0.98f, 0.5f, 1f, 1f); // Vibrant light purple
             costText.alignment = TMPro.TextAlignmentOptions.Center;
-            costText.text = "💧" + cardData.ElixirCost;
+            costText.text = cardData.ElixirCost.ToString();
 
             RectTransform textRect = elixirTextGo.GetComponent<RectTransform>();
             textRect.anchorMin = Vector2.zero; // Stretch
