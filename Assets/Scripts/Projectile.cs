@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -20,6 +20,10 @@ namespace UnityRoyale
 
 		public float Move()
 		{
+            if (target == null)
+            {
+                return 1f; // Force hit/destruction if target is missing
+            }
 			progress += Time.deltaTime * speed;
 			transform.position = Vector3.Lerp(initialPosition, target.transform.position + offset, progress);
 

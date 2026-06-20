@@ -44,26 +44,21 @@ namespace UnityRoyale
 
 		private void DeckLoaded()
 		{
-            Debug.Log("Player's deck loaded");
-
-            //setup initial cards
-            StartCoroutine(AddCardToDeck(.1f));
-            for(int i=0; i<cards.Length; i++)
-            {
-                StartCoroutine(PromoteCardFromDeck(i, .4f + i));
-                StartCoroutine(AddCardToDeck(.8f + i));
-            }
+            ResetDeckAndUI();
 		}
 
-        //moves the preview card from the deck to the active card dashboard
-        private IEnumerator PromoteCardFromDeck(int position, float delay = 0f)
+        //moves the preview card from the deck to the active card dashboard instantly in logic, while animating visually
+        private void PromoteCardFromDeck(int position)
         {
-            yield return new WaitForSeconds(delay);
+            if (backupCardTransform == null)
+            {
+                Debug.LogError("PromoteCardFromDeck: backupCardTransform is null!");
+                return;
+            }
 
             backupCardTransform.SetParent(cardsDashboard, true);
             //move and scale into position
-            backupCardTransform.DOAnchorPos(new Vector2(210f * (position+1) + 20f, 0f),
-                                            .2f + (.05f*position)).SetEase(Ease.OutQuad);
+            backupCardTransform.DOAnchorPos(new Vector2(220f * (position+1), 0f), 0.25f).SetEase(Ease.OutQuad);
             backupCardTransform.localScale = Vector3.one;
 
             //store a reference to the Card component in the array
@@ -75,26 +70,26 @@ namespace UnityRoyale
             cardScript.OnTapDownAction += CardTapped;
             cardScript.OnDragAction += CardDragged;
             cardScript.OnTapReleaseAction += CardReleased;
+
+            backupCardTransform = null;
         }
 
-        //adds a new card to the deck on the left, ready to be used
-        private IEnumerator AddCardToDeck(float delay = 0f) //TODO: pass in the CardData dynamically
+        //adds a new card to the deck on the left instantly, ready to be used
+        private void AddCardToDeck()
         {
-            yield return new WaitForSeconds(delay);
-
             CardData nextCard = playersDeck.GetNextCardFromDeck();
             if (nextCard == null)
             {
-                yield break;
+                return;
             }
 
             //create new card
             backupCardTransform = Instantiate<GameObject>(cardPrefab, cardsPanel).GetComponent<RectTransform>();
             backupCardTransform.localScale = Vector3.one * 0.7f;
             
-            //send it to the bottom left corner
+            //send it to the bottom left corner and animate it sliding in
             backupCardTransform.anchoredPosition = new Vector2(180f, -300f);
-            backupCardTransform.DOAnchorPos(new Vector2(180f, 0f), .2f).SetEase(Ease.OutQuad);
+            backupCardTransform.DOAnchorPos(new Vector2(180f, 0f), 0.25f).SetEase(Ease.OutQuad);
 
             //populate CardData on the Card script
             Card cardScript = backupCardTransform.GetComponent<Card>();
@@ -158,20 +153,33 @@ namespace UnityRoyale
 
         private void CardReleased(int cardId)
         {
+            if (cardId < 0 || cardId >= cards.Length || cards[cardId] == null) return;
+
             //raycasting to check if the card is on the play field
             RaycastHit hit;
             Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
             
             if (Physics.Raycast(ray, out hit, Mathf.Infinity, playingFieldMask))
             {
-                if(OnCardUsed != null)
-                    OnCardUsed(cards[cardId].cardData, hit.point + inputCreationOffset, Placeable.Faction.Player); //GameManager picks this up to spawn the actual Placeable
+                float spawnZ = hit.point.z + inputCreationOffset.z;
+                CardData cardData = cards[cardId].cardData;
+                GameManager gm = FindObjectOfType<GameManager>();
 
-                ClearPreviewObjects();
-                Destroy(cards[cardId].gameObject); //remove the card itself
-                
-                StartCoroutine(PromoteCardFromDeck(cardId, .2f));
-                StartCoroutine(AddCardToDeck(.6f));
+                // Rule check: cannot spawn in forbidden area (opponent's side or river, spawnZ must be <= -3.0f)
+                if (spawnZ <= -3.0f && gm != null && gm.playerElixir >= cardData.ElixirCost)
+                {
+                    gm.playerElixir -= cardData.ElixirCost; // Deduct cost
+                    ClearPreviewObjects();
+                    PlayCardFromHand(cardId, hit.point + inputCreationOffset);
+                }
+                else
+                {
+                    // Snap back due to insufficient Elixir or invalid placement in forbidden area
+                    cards[cardId].ChangeActiveState(false);
+                    ClearPreviewObjects();
+                    cards[cardId].GetComponent<RectTransform>().DOAnchorPos(new Vector2(220f * (cardId+1), 0f),
+                                                                            .2f).SetEase(Ease.OutQuad);
+                }
             }
             else
             {
@@ -190,6 +198,100 @@ namespace UnityRoyale
             {
                 Destroy(previewHolder.transform.GetChild(i).gameObject);
             }
+        }
+
+        public void ResetDeckAndUI()
+        {
+            StopAllCoroutines();
+            ClearCards();
+            if (playersDeck != null)
+            {
+                playersDeck.ResetDeck();
+                
+                // Draw and promote all 3 slots instantly to prevent race conditions and empty slots
+                AddCardToDeck();
+                PromoteCardFromDeck(0);
+
+                AddCardToDeck();
+                PromoteCardFromDeck(1);
+
+                AddCardToDeck();
+                PromoteCardFromDeck(2);
+
+                // Add the next card to the deck preview
+                AddCardToDeck();
+            }
+        }
+
+        public void ClearCards()
+        {
+            if (cards != null)
+            {
+                for (int i = 0; i < cards.Length; i++)
+                {
+                    if (cards[i] != null)
+                    {
+                        Destroy(cards[i].gameObject);
+                        cards[i] = null;
+                    }
+                }
+            }
+
+            if (cardsDashboard != null)
+            {
+                foreach (Transform child in cardsDashboard)
+                {
+                    if (child != null && child.gameObject.GetComponent<Card>() != null)
+                    {
+                        Destroy(child.gameObject);
+                    }
+                }
+            }
+
+            if (cardsPanel != null)
+            {
+                foreach (Transform child in cardsPanel)
+                {
+                    if (child != null && child.gameObject.GetComponent<Card>() != null)
+                    {
+                        Destroy(child.gameObject);
+                    }
+                }
+            }
+        }
+
+        public CardData GetCardDataInSlot(int slotIndex)
+        {
+            if (slotIndex < 0 || slotIndex >= cards.Length || cards[slotIndex] == null)
+                return null;
+            return cards[slotIndex].cardData;
+        }
+
+        public bool PlayCardFromHand(int cardId, Vector3 position)
+        {
+            if (cardId < 0 || cardId >= cards.Length || cards[cardId] == null)
+                return false;
+
+            CardData playedCard = cards[cardId].cardData;
+
+            if (OnCardUsed != null)
+                OnCardUsed(playedCard, position, Placeable.Faction.Player);
+
+            Destroy(cards[cardId].gameObject);
+            cards[cardId] = null; // Clear the slot
+
+            if (playersDeck != null)
+            {
+                playersDeck.RecycleCard(playedCard);
+            }
+
+            // Promote the current backup card to this slot instantly
+            PromoteCardFromDeck(cardId);
+
+            // Draw the next card instantly to the backup slot
+            AddCardToDeck();
+
+            return true;
         }
     }
 

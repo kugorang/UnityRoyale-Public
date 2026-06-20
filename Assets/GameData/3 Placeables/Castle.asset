@@ -18,9 +18,9 @@ MonoBehaviour:
   attackType: 0
   targetType: 1
   attackRatio: 1
-  damagePerAttack: 5
+  damagePerAttack: 3
   attackRange: 3
-  hitPoints: 5
+  hitPoints: 80
   speed: 0
   lifeTime: 0
   damagePerSecond: 0

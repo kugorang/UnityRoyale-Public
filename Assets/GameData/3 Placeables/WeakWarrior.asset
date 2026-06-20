@@ -19,10 +19,10 @@ MonoBehaviour:
     type: 3}
   attackType: 0
   targetType: 1
-  attackRatio: 2
+  attackRatio: 1
   damagePerAttack: 1
   attackRange: 2.5
-  hitPoints: 1
+  hitPoints: 8
   attackClip: {fileID: 8300000, guid: 28446d802d5e7492ebcfa6b25078359d, type: 3}
   dieClip: {fileID: 8300000, guid: 061b3f1222c974d2ba767a41fb87b4f7, type: 3}
   speed: 2

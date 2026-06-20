@@ -37,6 +37,18 @@ namespace UnityRoyale
             p.healthBar = null;
 		}
 
+        public void ResetUI()
+        {
+            if (healthBarContainer != null)
+            {
+                for (int i = healthBarContainer.childCount - 1; i >= 0; i--)
+                {
+                    Destroy(healthBarContainer.GetChild(i).gameObject);
+                }
+            }
+            healthBars.Clear();
+        }
+
 		public void ShowGameOverUI()
 		{
 			gameOverUI.SetActive(true);

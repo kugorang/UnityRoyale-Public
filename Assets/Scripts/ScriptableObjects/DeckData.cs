@@ -14,7 +14,7 @@ namespace UnityRoyale
         public AssetLabelReference[] labelsToInclude; //set by designers
 
         private CardData[] cards; //the deck of actual cards, needs to be shuffled
-        private int currentCard = 0;
+        private Queue<CardData> activeDeckQueue = new Queue<CardData>();
 
         public void CardsRetrieved(IList<CardData> cardDataDownloaded)
         {
@@ -25,28 +25,82 @@ namespace UnityRoyale
             {
                 cards[c] = cardDataDownloaded[c];
             }
+            ShuffleCards();
+            InitQueue();
         }
 
         public void ShuffleCards()
         {
-            //TODO: shuffle cards
+            if (cards == null || cards.Length == 0) return;
+
+            // Use System.Random with a Guid-based hash seed to guarantee true randomness
+            // even if the Unity Editor's random seed is fixed by ML-Agents.
+            System.Random rnd = new System.Random(Guid.NewGuid().GetHashCode());
+            for (int i = cards.Length - 1; i > 0; i--)
+            {
+                int r = rnd.Next(0, i + 1);
+                CardData tmp = cards[i];
+                cards[i] = cards[r];
+                cards[r] = tmp;
+            }
         }
 
-		//returns the next card in the deck. You probably want to shuffle cards first
-		public CardData GetNextCardFromDeck()
+        public void ResetDeck()
         {
-            if (cards == null || cards.Length == 0)
+            ShuffleCards();
+            InitQueue();
+        }
+
+        private void InitQueue()
+        {
+            if (activeDeckQueue == null) activeDeckQueue = new Queue<CardData>();
+            activeDeckQueue.Clear();
+            if (cards != null)
+            {
+                foreach (var card in cards)
+                {
+                    activeDeckQueue.Enqueue(card);
+                }
+            }
+        }
+
+        public CardData PeekNextCard()
+        {
+            if (activeDeckQueue == null || activeDeckQueue.Count == 0)
+            {
+                InitQueue();
+            }
+
+            if (activeDeckQueue == null || activeDeckQueue.Count == 0)
+            {
+                return null;
+            }
+
+            return activeDeckQueue.Peek();
+        }
+
+        //returns the next card in the deck. You probably want to shuffle cards first
+        public CardData GetNextCardFromDeck()
+        {
+            if (activeDeckQueue == null || activeDeckQueue.Count == 0)
+            {
+                InitQueue();
+            }
+
+            if (activeDeckQueue == null || activeDeckQueue.Count == 0)
             {
                 Debug.LogError("No cards loaded in deck: " + name);
                 return null;
             }
 
-            //advance the index
-            currentCard++;
-            if(currentCard >= cards.Length)
-                currentCard = 0;
+            return activeDeckQueue.Dequeue();
+        }
 
-            return cards[currentCard];
+        public void RecycleCard(CardData card)
+        {
+            if (card == null) return;
+            if (activeDeckQueue == null) activeDeckQueue = new Queue<CardData>();
+            activeDeckQueue.Enqueue(card);
         }
     }
 }

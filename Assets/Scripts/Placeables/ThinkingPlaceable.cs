@@ -35,6 +35,7 @@ namespace UnityRoyale
 		[HideInInspector] public AudioClip attackAudioClip;
         
         [HideInInspector] public float timeToActNext = 0f;
+        [HideInInspector] public float nextRetargetTime = 0f;
 
 		//Inspector references
 		[Header("Projectile for Ranged")]
@@ -48,6 +49,17 @@ namespace UnityRoyale
 
         public virtual void SetTarget(ThinkingPlaceable t)
         {
+            if (target != null)
+            {
+                try
+                {
+                    target.OnDie -= TargetIsDead;
+                }
+                catch (System.Exception)
+                {
+                    // Ignore exceptions if the target object is already destroyed
+                }
+            }
             target = t;
             if (t != null)
             {
@@ -87,6 +99,7 @@ namespace UnityRoyale
         public virtual void Seek()
         {
             state = States.Seeking;
+            nextRetargetTime = Time.time + 1.0f;
         }
 
         protected void TargetIsDead(Placeable p)
@@ -99,9 +112,27 @@ namespace UnityRoyale
             timeToActNext = lastBlowTime + attackRatio;
         }
         
-        public bool IsTargetInRange()
+        public bool IsTargetInRange(bool isAlreadyAttacking = false)
         {
-            return (transform.position-target.transform.position).sqrMagnitude <= attackRange*attackRange;
+            if (target == null) return false;
+            // Adding a buffer (e.g. 1.2f) to attackRange to account for NavMeshAgent obstacle avoidance
+            // stopping the units just outside their exact attack range.
+            float buffer = 1.2f;
+            if (isAlreadyAttacking)
+            {
+                buffer += 0.5f; // Extra buffer to prevent jitter/rapid state toggling once attacking
+            }
+            float rangeWithBuffer = attackRange + buffer;
+            
+            // Calculate distance to the closest point on the target's collider (especially important for large buildings/castles)
+            Vector3 targetPos = target.transform.position;
+            Collider targetCollider = target.GetComponent<Collider>();
+            if (targetCollider != null && targetCollider.enabled)
+            {
+                targetPos = targetCollider.ClosestPoint(transform.position);
+            }
+            
+            return (transform.position - targetPos).sqrMagnitude <= rangeWithBuffer * rangeWithBuffer;
         }
 
         public float SufferDamage(float amount)
