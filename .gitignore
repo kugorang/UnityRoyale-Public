@@ -231,3 +231,7 @@ $RECYCLE.BIN/
 *.lnk
 
 # End of https://www.toptal.com/developers/gitignore/api/windows,macos,unity,visualstudiocode,rider
+
+# ML-Agents training results & temporary flags
+/results/
+/PlayModeFlag.txt
