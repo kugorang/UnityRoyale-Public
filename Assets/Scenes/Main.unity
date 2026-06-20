@@ -49512,6 +49512,9 @@ GameObject:
   - component: {fileID: 2080708077}
   - component: {fileID: 2080708079}
   - component: {fileID: 2080708080}
+  - component: {fileID: 2080708083}
+  - component: {fileID: 2080708082}
+  - component: {fileID: 2080708084}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -49584,12 +49587,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   autoStart: 0
-  navMesh: {fileID: 0}
+  navMesh: {fileID: 1032721643}
   playersCastle: {fileID: 3986183179036923824}
   opponentCastle: {fileID: 1690671712}
   introTimeline: {fileID: 1304312225}
   castlePData: {fileID: 11400000, guid: 8672dd604875f4abc8acb11b323a8755, type: 2}
   appearEffectPool: {fileID: 4756788}
+  mlAgent: {fileID: 2080708084}
+  playerElixir: 5
+  opponentElixir: 5
+  maxElixir: 10
+  elixirRegenRate: 0.7
 --- !u!114 &2080708079
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -49603,6 +49611,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   aiDeck: {fileID: 11400000, guid: 8a5c0422680584f748caecc799c2ca4a, type: 2}
+  faction: 1
   opponentLoopTime: 4
 --- !u!114 &2080708080
 MonoBehaviour:
@@ -49619,6 +49628,72 @@ MonoBehaviour:
   healthBarPrefab: {fileID: 2299034459240315198, guid: 9e92fec54b5d04c808690d208805e76c,
     type: 3}
   gameOverUI: {fileID: 90868397}
+--- !u!114 &2080708082
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2080708074}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3a5c9d521e5ef4759a8246a07d52221e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.DecisionRequester
+  DecisionPeriod: 5
+  DecisionStep: 0
+  TakeActionsBetweenDecisions: 0
+--- !u!114 &2080708083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2080708074}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d1c4e0b1822b495aa52bc52839ecb30, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
+  m_BrainParameters:
+    VectorObservationSize: 40
+    NumStackedVectorObservations: 1
+    m_ActionSpec:
+      m_NumContinuousActions: 2
+      BranchSizes: 04000000
+    VectorActionSize: 
+    VectorActionDescriptions: []
+    VectorActionSpaceType: 0
+    hasUpgradedBrainParametersWithActionSpec: 1
+  m_Model: {fileID: 0}
+  m_InferenceDevice: 0
+  m_BehaviorType: 0
+  m_BehaviorName: MLPlayer
+  TeamId: 0
+  m_UseChildSensors: 1
+  m_UseChildActuators: 1
+  m_DeterministicInference: 0
+  m_ObservableAttributeHandling: 0
+--- !u!114 &2080708084
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2080708074}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9bb17f5a4a8fbdd4e9c931c391ad660f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UnityRoyale.MLPlayerAgent
+  agentParameters:
+    maxStep: 0
+  hasUpgradedFromAgentParameters: 1
+  MaxStep: 5000
+  gameManager: {fileID: 2080708078}
+  playerDeck: {fileID: 11400000, guid: a7dabc74b29d3475291fbb95a8ab8b70, type: 2}
+  actionCooldown: 1
+  heuristicCooldown: 3
 --- !u!1001 &2082434798
 PrefabInstance:
   m_ObjectHideFlags: 0
