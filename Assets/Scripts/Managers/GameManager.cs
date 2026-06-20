@@ -19,6 +19,9 @@ namespace UnityRoyale
         public PlaceableData castlePData;
 		public ParticlePool appearEffectPool;
         public MLPlayerAgent mlAgent;
+        public MLPlayerAgent opponentMLAgent;
+
+        public CPUOpponent opponentCPU => CPUOpponent;
 
         private CardManager cardManager;
         private CPUOpponent CPUOpponent;
@@ -593,9 +596,11 @@ namespace UnityRoyale
 		private void OnCastleDead(Placeable c)
 		{
             // Debug.Log($"[MatchState] OnCastleDead called! Castle: {c.gameObject.name}, Faction: {c.faction}");
+            bool isTraining = mlAgent != null && mlAgent.isActiveAndEnabled && mlAgent.controlMatchReset;
+
             if (mlAgent != null && mlAgent.isActiveAndEnabled)
             {
-                if (c.faction == Placeable.Faction.Opponent) // Enemy castle died -> Agent(Player) wins!
+                if (c.faction == Placeable.Faction.Opponent) // Agent(Player) wins!
                 {
                     mlAgent.AddReward(1.0f);
                 }
@@ -604,6 +609,23 @@ namespace UnityRoyale
                     mlAgent.AddReward(-1.0f);
                 }
                 mlAgent.EndEpisode();
+            }
+
+            if (opponentMLAgent != null && opponentMLAgent.isActiveAndEnabled)
+            {
+                if (c.faction == Placeable.Faction.Player) // Agent(Opponent) wins!
+                {
+                    opponentMLAgent.AddReward(1.0f);
+                }
+                else // Agent(Opponent) loses!
+                {
+                    opponentMLAgent.AddReward(-1.0f);
+                }
+                opponentMLAgent.EndEpisode();
+            }
+
+            if (isTraining)
+            {
                 return; // skip cutscenes and UI in training mode
             }
 
@@ -957,7 +979,7 @@ namespace UnityRoyale
             GUILayout.BeginArea(new Rect(x, y, width, height), elixirBubbleStyle);
             
             // Draw Player Elixir
-            GUILayout.Label($"💧 {playerElixir:F1}", elixirTextStyle);
+            GUILayout.Label($"Elixir: {playerElixir:F1}", elixirTextStyle);
             
             // Draw Opponent Elixir (smaller font for debug)
             GUILayout.Label($"Opponent: {opponentElixir:F1}", opponentTextStyle);

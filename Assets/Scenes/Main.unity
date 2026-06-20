@@ -49594,6 +49594,7 @@ MonoBehaviour:
   castlePData: {fileID: 11400000, guid: 8672dd604875f4abc8acb11b323a8755, type: 2}
   appearEffectPool: {fileID: 4756788}
   mlAgent: {fileID: 2080708084}
+  opponentMLAgent: {fileID: 0}
   playerElixir: 5
   opponentElixir: 5
   maxElixir: 10
@@ -49612,6 +49613,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   aiDeck: {fileID: 11400000, guid: 8a5c0422680584f748caecc799c2ca4a, type: 2}
   faction: 1
+  useMLAgent: 0
   opponentLoopTime: 4
 --- !u!114 &2080708080
 MonoBehaviour:
@@ -49656,7 +49658,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 40
+    VectorObservationSize: 52
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 2
@@ -49694,6 +49696,8 @@ MonoBehaviour:
   playerDeck: {fileID: 11400000, guid: a7dabc74b29d3475291fbb95a8ab8b70, type: 2}
   actionCooldown: 1
   heuristicCooldown: 3
+  agentFaction: 0
+  controlMatchReset: 1
 --- !u!1001 &2082434798
 PrefabInstance:
   m_ObjectHideFlags: 0

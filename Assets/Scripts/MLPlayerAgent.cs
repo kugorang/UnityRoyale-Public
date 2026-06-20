@@ -18,11 +18,18 @@ namespace UnityRoyale
         private float lastHeuristicActionTime = 0f;
         public float heuristicCooldown = 3f;
 
+        [Header("Faction & Reset Settings")]
+        public Placeable.Faction agentFaction = Placeable.Faction.Player;
+        public bool controlMatchReset = true;
+
         private Building myCastleBuilding;      // Player's castle (Agent's own)
         private Building enemyCastleBuilding;    // Opponent's castle (target to destroy)
         private CardManager cardManager;         // Sync card hand
 
         private float maxCastleHP = 1f;
+
+        private CardData[] opponentHand = new CardData[3];
+        private CardData opponentNextCard;
 
         /// <summary>
         /// Lazily ensures all references are valid. Called every time observations
@@ -36,10 +43,20 @@ namespace UnityRoyale
 
             if (gameManager != null)
             {
-                if (myCastleBuilding == null && gameManager.playersCastle != null)
-                    myCastleBuilding = gameManager.playersCastle.GetComponent<Building>();
-                if (enemyCastleBuilding == null && gameManager.opponentCastle != null)
-                    enemyCastleBuilding = gameManager.opponentCastle.GetComponent<Building>();
+                if (agentFaction == Placeable.Faction.Player)
+                {
+                    if (myCastleBuilding == null && gameManager.playersCastle != null)
+                        myCastleBuilding = gameManager.playersCastle.GetComponent<Building>();
+                    if (enemyCastleBuilding == null && gameManager.opponentCastle != null)
+                        enemyCastleBuilding = gameManager.opponentCastle.GetComponent<Building>();
+                }
+                else
+                {
+                    if (myCastleBuilding == null && gameManager.opponentCastle != null)
+                        myCastleBuilding = gameManager.opponentCastle.GetComponent<Building>();
+                    if (enemyCastleBuilding == null && gameManager.playersCastle != null)
+                        enemyCastleBuilding = gameManager.playersCastle.GetComponent<Building>();
+                }
                 if (maxCastleHP <= 1f && gameManager.castlePData != null)
                     maxCastleHP = gameManager.castlePData.hitPoints;
             }
@@ -67,13 +84,30 @@ namespace UnityRoyale
         public override void OnEpisodeBegin()
         {
             EnsureReferences();
-            if (gameManager != null)
+            if (controlMatchReset && gameManager != null)
             {
                 gameManager.ResetMatch();
-                // Re-acquire castle references after reset
-                myCastleBuilding = gameManager.playersCastle.GetComponent<Building>();
-                enemyCastleBuilding = gameManager.opponentCastle.GetComponent<Building>();
             }
+
+            if (gameManager != null)
+            {
+                if (agentFaction == Placeable.Faction.Player)
+                {
+                    myCastleBuilding = gameManager.playersCastle != null ? gameManager.playersCastle.GetComponent<Building>() : null;
+                    enemyCastleBuilding = gameManager.opponentCastle != null ? gameManager.opponentCastle.GetComponent<Building>() : null;
+                }
+                else
+                {
+                    myCastleBuilding = gameManager.opponentCastle != null ? gameManager.opponentCastle.GetComponent<Building>() : null;
+                    enemyCastleBuilding = gameManager.playersCastle != null ? gameManager.playersCastle.GetComponent<Building>() : null;
+                }
+            }
+
+            if (agentFaction == Placeable.Faction.Opponent)
+            {
+                InitializeOpponentHand();
+            }
+
             // Reset action cooldowns to allow immediate play at the start of each match
             lastActionTime = Time.time - actionCooldown;
             lastHeuristicActionTime = Time.time - heuristicCooldown;
@@ -85,8 +119,8 @@ namespace UnityRoyale
 
             if (myCastleBuilding == null || enemyCastleBuilding == null)
             {
-                // Fallback: add 40 zero observations to match VectorObservationSize
-                for (int i = 0; i < 40; i++)
+                // Fallback: add 52 zero observations to match VectorObservationSize
+                for (int i = 0; i < 52; i++)
                     sensor.AddObservation(0f);
                 return;
             }
@@ -95,9 +129,12 @@ namespace UnityRoyale
             sensor.AddObservation(myCastleBuilding.hitPoints / maxCastleHP);
             sensor.AddObservation(enemyCastleBuilding.hitPoints / maxCastleHP);
 
-            // Fetch active units from GameManager
-            List<ThinkingPlaceable> myUnits = GetThinkingPlaceables(Placeable.Faction.Player);
-            List<ThinkingPlaceable> enemyUnits = GetThinkingPlaceables(Placeable.Faction.Opponent);
+            // Fetch active units from GameManager based on faction
+            Placeable.Faction myFaction = agentFaction;
+            Placeable.Faction enemyFaction = (agentFaction == Placeable.Faction.Player) ? Placeable.Faction.Opponent : Placeable.Faction.Player;
+
+            List<ThinkingPlaceable> myUnits = GetThinkingPlaceables(myFaction);
+            List<ThinkingPlaceable> enemyUnits = GetThinkingPlaceables(enemyFaction);
 
             // 2. My units (up to 4, 4 observations each: x, y, z, hp -> 16 observations)
             for (int i = 0; i < 4; i++)
@@ -139,19 +176,35 @@ namespace UnityRoyale
                 }
             }
 
-            // 4. Current hand cards and next card (4 observations instead of 1 -> Total: 38 observations)
+            // 4. Current hand cards and next card (4 cards, 4 observations each: value, elixir cost, hp, range -> 16 observations)
             for (int i = 0; i < 3; i++)
             {
-                CardData handCard = (cardManager != null) ? cardManager.GetCardDataInSlot(i) : null;
-                sensor.AddObservation(GetCardObservationValue(handCard));
+                CardData handCard;
+                if (agentFaction == Placeable.Faction.Player)
+                {
+                    handCard = (cardManager != null) ? cardManager.GetCardDataInSlot(i) : null;
+                }
+                else
+                {
+                    handCard = GetOpponentHandCard(i);
+                }
+                AddCardObservations(sensor, handCard);
             }
 
-            CardData nextCard = playerDeck != null ? playerDeck.PeekNextCard() : null;
-            sensor.AddObservation(GetCardObservationValue(nextCard));
+            CardData nextCard;
+            if (agentFaction == Placeable.Faction.Player)
+            {
+                nextCard = playerDeck != null ? playerDeck.PeekNextCard() : null;
+            }
+            else
+            {
+                nextCard = GetOpponentNextCard();
+            }
+            AddCardObservations(sensor, nextCard);
 
-            // 5. Elixir levels (2 observations -> Total: 40 observations)
-            sensor.AddObservation(gameManager != null ? gameManager.playerElixir / 10f : 0f);
-            sensor.AddObservation(gameManager != null ? gameManager.opponentElixir / 10f : 0f);
+            // 5. Elixir levels (2 observations -> Total: 52 observations)
+            sensor.AddObservation(gameManager != null ? (agentFaction == Placeable.Faction.Player ? gameManager.playerElixir / 10f : gameManager.opponentElixir / 10f) : 0f);
+            sensor.AddObservation(gameManager != null ? (agentFaction == Placeable.Faction.Player ? gameManager.opponentElixir / 10f : gameManager.playerElixir / 10f) : 0f);
         }
 
         public override void OnActionReceived(ActionBuffers actions)
@@ -163,47 +216,83 @@ namespace UnityRoyale
             if (playAction >= 1 && playAction <= 3 && !onCooldown)
             {
                 // Continuous Action 0: X offset (-1 to 1) -> maps to (-5.0 to 5.0)
-                // Continuous Action 1: Z offset (-1 to 1) -> maps to (-8.5 to -3.0) PLAYER SIDE
+                // Continuous Action 1: Z offset (-1 to 1) -> maps to PLAYER SIDE or OPPONENT SIDE
                 float rawX = actions.ContinuousActions[0];
                 float rawZ = actions.ContinuousActions[1];
 
                 float spawnX = Mathf.Clamp(rawX * 5f, -5f, 5f);
-                float spawnZ = Mathf.Clamp(((rawZ + 1f) / 2f) * -5.5f - 3f, -8.5f, -3f);
+                float spawnZ;
+                if (agentFaction == Placeable.Faction.Player)
+                {
+                    spawnZ = Mathf.Clamp(((rawZ + 1f) / 2f) * -5.5f - 3f, -8.5f, -3f); // Player side [-8.5, -3]
+                }
+                else
+                {
+                    spawnZ = Mathf.Clamp(((rawZ + 1f) / 2f) * 5.5f + 3f, 3f, 8.5f); // Opponent side [3, 8.5]
+                }
 
                 int slotIndex = playAction - 1;
                 Vector3 spawnPos = new Vector3(spawnX, 0f, spawnZ);
 
-                if (cardManager != null)
+                if (agentFaction == Placeable.Faction.Player)
                 {
-                    CardData card = cardManager.GetCardDataInSlot(slotIndex);
+                    if (cardManager != null)
+                    {
+                        CardData card = cardManager.GetCardDataInSlot(slotIndex);
+                        if (card != null)
+                        {
+                            if (gameManager != null && gameManager.playerElixir >= card.ElixirCost)
+                            {
+                                bool success = cardManager.PlayCardFromHand(slotIndex, spawnPos);
+                                if (success)
+                                {
+                                    gameManager.playerElixir -= card.ElixirCost; // Deduct cost
+                                     // Scale reward with Elixir cost so high cost cards are rewarded appropriately
+                                    AddReward(0.005f * card.ElixirCost);
+                                    lastActionTime = Time.time;
+                                }
+                            }
+                            else
+                            {
+                                // Negative reward for trying to play with insufficient Elixir
+                                AddReward(-0.01f);
+                            }
+                        }
+                        else
+                        {
+                            // Negative reward for trying to play an empty slot
+                            AddReward(-0.02f);
+                        }
+                    }
+                    else
+                    {
+                        AddReward(-0.02f);
+                    }
+                }
+                else // Opponent faction
+                {
+                    CardData card = GetOpponentHandCard(slotIndex);
                     if (card != null)
                     {
-                        if (gameManager != null && gameManager.playerElixir >= card.ElixirCost)
+                        if (gameManager != null && gameManager.opponentElixir >= card.ElixirCost)
                         {
-                            bool success = cardManager.PlayCardFromHand(slotIndex, spawnPos);
+                            bool success = PlayCardFromOpponentHand(slotIndex, spawnPos);
                             if (success)
                             {
-                                gameManager.playerElixir -= card.ElixirCost; // Deduct cost
-                                 // Scale reward with Elixir cost so high cost cards are rewarded appropriately
+                                gameManager.opponentElixir -= card.ElixirCost; // Deduct cost
                                 AddReward(0.005f * card.ElixirCost);
                                 lastActionTime = Time.time;
                             }
                         }
                         else
                         {
-                            // Negative reward for trying to play with insufficient Elixir
                             AddReward(-0.01f);
                         }
                     }
                     else
                     {
-                        // Negative reward for trying to play an empty slot
                         AddReward(-0.02f);
                     }
-                }
-                else
-                {
-                    AddReward(-0.02f);
                 }
             }
 
@@ -243,19 +332,35 @@ namespace UnityRoyale
         public override void WriteDiscreteActionMask(IDiscreteActionMask actionMask)
         {
             EnsureReferences();
-            if (cardManager == null || gameManager == null) return;
-
             bool onCooldown = Time.time < lastActionTime + actionCooldown;
 
-            // Discrete Action 0 branch has size 4 (0: Wait, 1: Slot 0, 2: Slot 1, 3: Slot 2)
-            // If on cooldown, or if the card in slot i is null, or if gameManager.playerElixir < ElixirCost, mask it!
-            for (int i = 0; i < 3; i++)
+            if (agentFaction == Placeable.Faction.Player)
             {
-                CardData card = cardManager.GetCardDataInSlot(i);
-                if (onCooldown || card == null || gameManager.playerElixir < card.ElixirCost)
+                if (cardManager == null || gameManager == null) return;
+
+                // Discrete Action 0 branch has size 4 (0: Wait, 1: Slot 0, 2: Slot 1, 3: Slot 2)
+                // If on cooldown, or if the card in slot i is null, or if gameManager.playerElixir < ElixirCost, mask it!
+                for (int i = 0; i < 3; i++)
                 {
-                    // Action mask index = playAction (slotIndex + 1)
-                    actionMask.SetActionEnabled(0, i + 1, false);
+                    CardData card = cardManager.GetCardDataInSlot(i);
+                    if (onCooldown || card == null || gameManager.playerElixir < card.ElixirCost)
+                    {
+                        // Action mask index = playAction (slotIndex + 1)
+                        actionMask.SetActionEnabled(0, i + 1, false);
+                    }
+                }
+            }
+            else // Opponent faction
+            {
+                if (gameManager == null) return;
+
+                for (int i = 0; i < 3; i++)
+                {
+                    CardData card = GetOpponentHandCard(i);
+                    if (onCooldown || card == null || gameManager.opponentElixir < card.ElixirCost)
+                    {
+                        actionMask.SetActionEnabled(0, i + 1, false);
+                    }
                 }
             }
         }
@@ -273,6 +378,106 @@ namespace UnityRoyale
             if (name.Contains("warriorinnocuous")) return 0.875f;
             if (name.Contains("warrior")) return 1.0f;
             return 0.05f;
+        }
+
+        private CardData GetOpponentHandCard(int index)
+        {
+            if (index < 0 || index >= opponentHand.Length) return null;
+            if (opponentHand[index] == null)
+            {
+                CPUOpponent cpu = FindObjectOfType<CPUOpponent>();
+                if (cpu != null && cpu.aiDeck != null)
+                {
+                    opponentHand[index] = cpu.aiDeck.GetNextCardFromDeck();
+                }
+            }
+            return opponentHand[index];
+        }
+
+        private CardData GetOpponentNextCard()
+        {
+            if (opponentNextCard == null)
+            {
+                CPUOpponent cpu = FindObjectOfType<CPUOpponent>();
+                if (cpu != null && cpu.aiDeck != null)
+                {
+                    opponentNextCard = cpu.aiDeck.GetNextCardFromDeck();
+                }
+            }
+            return opponentNextCard;
+        }
+
+        private bool PlayCardFromOpponentHand(int slotIndex, Vector3 spawnPos)
+        {
+            CardData card = opponentHand[slotIndex];
+            if (card == null) return false;
+
+            CPUOpponent cpu = FindObjectOfType<CPUOpponent>();
+            if (cpu != null && cpu.OnCardUsed != null)
+            {
+                cpu.OnCardUsed(card, spawnPos, Placeable.Faction.Opponent);
+            }
+
+            // Recycle card
+            if (cpu != null && cpu.aiDeck != null)
+            {
+                cpu.aiDeck.RecycleCard(card);
+            }
+
+            // Re-fill slot from next card
+            opponentHand[slotIndex] = GetOpponentNextCard();
+
+            // Draw new next card
+            if (cpu != null && cpu.aiDeck != null)
+            {
+                opponentNextCard = cpu.aiDeck.GetNextCardFromDeck();
+            }
+            else
+            {
+                opponentNextCard = null;
+            }
+
+            return true;
+        }
+
+        private void InitializeOpponentHand()
+        {
+            CPUOpponent cpu = FindObjectOfType<CPUOpponent>();
+            if (cpu == null || cpu.aiDeck == null) return;
+
+            cpu.aiDeck.ResetDeck();
+            for (int i = 0; i < 3; i++)
+            {
+                opponentHand[i] = cpu.aiDeck.GetNextCardFromDeck();
+            }
+            opponentNextCard = cpu.aiDeck.GetNextCardFromDeck();
+        }
+
+        private void AddCardObservations(VectorSensor sensor, CardData card)
+        {
+            if (card == null)
+            {
+                sensor.AddObservation(0f); // Card ID value
+                sensor.AddObservation(0f); // Elixir Cost
+                sensor.AddObservation(0f); // HP
+                sensor.AddObservation(0f); // Range
+                return;
+            }
+
+            sensor.AddObservation(GetCardObservationValue(card));
+            sensor.AddObservation(card.ElixirCost / 10f);
+
+            if (card.placeablesData != null && card.placeablesData.Length > 0 && card.placeablesData[0] != null)
+            {
+                PlaceableData pData = card.placeablesData[0];
+                sensor.AddObservation(pData.hitPoints / 50f);
+                sensor.AddObservation(pData.attackRange / 10f);
+            }
+            else
+            {
+                sensor.AddObservation(0f); // HP fallback
+                sensor.AddObservation(0f); // Range fallback
+            }
         }
 
         private List<ThinkingPlaceable> GetThinkingPlaceables(Placeable.Faction faction)

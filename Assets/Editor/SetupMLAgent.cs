@@ -75,7 +75,7 @@ namespace UnityRoyale
             }
             // Setup Behavior Parameters values
             bp.BehaviorName = "MLPlayer";
-            bp.BrainParameters.VectorObservationSize = 40;
+            bp.BrainParameters.VectorObservationSize = 52;
             bp.BrainParameters.NumStackedVectorObservations = 1;
             bp.BrainParameters.ActionSpec = new ActionSpec(2, new int[] { 4 }); // 2 continuous, 1 discrete branch with size 4
 

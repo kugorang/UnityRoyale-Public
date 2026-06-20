@@ -11,6 +11,7 @@ namespace UnityRoyale
         public UnityAction<CardData, Vector3, Placeable.Faction> OnCardUsed;
 
         public Placeable.Faction faction = Placeable.Faction.Opponent;
+        public bool useMLAgent = false;
         private bool act = false;
         private Coroutine actingCoroutine;
 
@@ -37,6 +38,7 @@ namespace UnityRoyale
 
 		public void StartActing()
 		{
+            if (useMLAgent) return; // If using ML-Agent, do not start random acting!
             StopActing();
             act = true;
             actingCoroutine = StartCoroutine(CreateRandomCards());
